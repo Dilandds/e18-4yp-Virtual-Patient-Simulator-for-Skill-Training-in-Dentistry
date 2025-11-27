@@ -427,8 +427,8 @@ https://vps-2k23-app.web.app
 
 For our deployment, we redirected the Firebase-generated URLs to our institute's subdomains:
 
-- http://vpsim-tutor.pdn.ac.lk/ → https://virtual-patient-simulator-2k23.web.app/  
-- http://vpsim-student.pdn.ac.lk/ → https://vps-2k23-app.web.app/
+- https://vpsim-tutor.pdn.ac.lk/ → https://virtual-patient-simulator-2k23.web.app/  
+- https://vpsim-student.pdn.ac.lk/ → https://vps-2k23-app.web.app/
 
 You may also configure your own institute or organization domain in the same way.  
 Simply add your custom subdomain in Firebase Hosting and update the DNS records accordingly and its completely free
