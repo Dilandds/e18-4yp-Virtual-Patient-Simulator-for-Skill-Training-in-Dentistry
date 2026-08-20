@@ -58,32 +58,39 @@ function SignIn() {
       const userObject = JSON.parse(savedUser);
       setUser(userObject);
       dispatch(UserActions.getCurrentUserDetails(userObject));
-      return;
     }
 
-    // If we're landing back here after signInWithRedirect() sent the
-    // browser to accounts.google.com and back, this resolves with the
-    // signed-in user. If the user hasn't started sign-in yet, result.user
-    // is null and this is a no-op.
+    // getRedirectResult() is a "consume once" API — this app's Redux store
+    // also wires up react-redux-firebase / redux-firestore (see index.js),
+    // which sets up its own Firebase Auth listener during store creation,
+    // before this component ever mounts. If that listener reads the
+    // pending redirect result first, our own getRedirectResult() call here
+    // legitimately comes back empty even though sign-in succeeded. Still
+    // call it so a genuine redirect ERROR (e.g. unauthorized-domain) surfaces,
+    // but don't rely on its resolved value to detect a successful sign-in.
     firebase
       .auth()
       .getRedirectResult()
-      .then((result) => {
-        if (result && result.user) {
-          const fbUser = result.user;
-          const userObject = {
-            email: fbUser.email,
-            name: fbUser.displayName,
-            picture: fbUser.photoURL,
-            sub: fbUser.uid,
-          };
-          completeSignIn(userObject);
-        }
-      })
       .catch((error) => {
         console.error("Google sign-in redirect failed:", error);
         showAlert();
       });
+
+    // onAuthStateChanged is the reliable source of truth: it fires whenever
+    // Firebase's auth state changes, including right after a redirect
+    // completes, regardless of who else already touched getRedirectResult().
+    const unsubscribe = firebase.auth().onAuthStateChanged((fbUser) => {
+      if (fbUser) {
+        const userObject = {
+          email: fbUser.email,
+          name: fbUser.displayName,
+          picture: fbUser.photoURL,
+          sub: fbUser.uid,
+        };
+        completeSignIn(userObject);
+      }
+    });
+    return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
