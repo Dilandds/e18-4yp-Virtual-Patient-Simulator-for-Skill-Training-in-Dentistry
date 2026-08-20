@@ -25,7 +25,7 @@
       ],
       "headers": [
         {
-          "source": "/unity/**",
+          "source": "**",
           "headers": [
             {
               "key": "Cross-Origin-Opener-Policy",
