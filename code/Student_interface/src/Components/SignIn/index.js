@@ -26,13 +26,19 @@ function SignIn() {
   const dispatch = useDispatch();
 
   function completeSignIn(userObject) {
+    console.log("[SignIn] completeSignIn called with:", userObject);
     var text = userObject.email || "";
     if (text.match("pdn.ac.lk")) {
+      console.log("[SignIn] pdn.ac.lk check passed, setting signed-in state");
       setUser(userObject);
       localStorage.setItem("user", JSON.stringify(userObject));
       dispatch(UserActions.getCurrentUserDetails(userObject));
       dispatch(TimeActions.setStartTime());
     } else {
+      console.log(
+        "[SignIn] pdn.ac.lk check FAILED for email:",
+        JSON.stringify(text)
+      );
       showAlert();
       firebase.auth().signOut();
     }
@@ -48,12 +54,15 @@ function SignIn() {
   }
 
   function handleSignInClick() {
+    console.log("[SignIn] sign-in button clicked, starting redirect");
     const provider = new firebase.auth.GoogleAuthProvider();
     firebase.auth().signInWithRedirect(provider);
   }
 
   useEffect(() => {
+    console.log("[SignIn] mount effect running, location:", window.location.href);
     const savedUser = localStorage.getItem("user");
+    console.log("[SignIn] localStorage 'user':", savedUser);
     if (savedUser) {
       const userObject = JSON.parse(savedUser);
       setUser(userObject);
@@ -71,8 +80,14 @@ function SignIn() {
     firebase
       .auth()
       .getRedirectResult()
+      .then((result) => {
+        console.log(
+          "[SignIn] getRedirectResult resolved, user:",
+          result && result.user
+        );
+      })
       .catch((error) => {
-        console.error("Google sign-in redirect failed:", error);
+        console.error("[SignIn] Google sign-in redirect failed:", error);
         showAlert();
       });
 
@@ -80,6 +95,7 @@ function SignIn() {
     // Firebase's auth state changes, including right after a redirect
     // completes, regardless of who else already touched getRedirectResult().
     const unsubscribe = firebase.auth().onAuthStateChanged((fbUser) => {
+      console.log("[SignIn] onAuthStateChanged fired, fbUser:", fbUser);
       if (fbUser) {
         const userObject = {
           email: fbUser.email,
