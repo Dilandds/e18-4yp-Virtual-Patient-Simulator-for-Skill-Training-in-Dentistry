@@ -20,25 +20,41 @@ import firebase from "../../Config/Config.js";
 // full-page redirect doesn't embed anything cross-origin, so it's
 // compatible with both.
 
+// Debug logging that survives the full-page OAuth redirect: DevTools
+// "Preserve log" isn't reliably surviving the round trip to accounts.google.com
+// and back, so write to localStorage instead (which is guaranteed to persist
+// across navigation) in addition to console.log. After landing back, run
+// `localStorage.getItem("debugLog")` in the console to see the full sequence.
+function debugLog(...args) {
+  console.log(...args);
+  try {
+    const line = `[${new Date().toISOString()}] ${args
+      .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+      .join(" ")}`;
+    const existing = localStorage.getItem("debugLog") || "";
+    const lines = (existing + "\n" + line).split("\n").slice(-50);
+    localStorage.setItem("debugLog", lines.join("\n"));
+  } catch (e) {
+    // ignore
+  }
+}
+
 function SignIn() {
   const [user, setUser] = useState({});
   const isSignIn = useSelector((state) => state.user.isSignIn);
   const dispatch = useDispatch();
 
   function completeSignIn(userObject) {
-    console.log("[SignIn] completeSignIn called with:", userObject);
+    debugLog("completeSignIn called with:", userObject);
     var text = userObject.email || "";
     if (text.match("pdn.ac.lk")) {
-      console.log("[SignIn] pdn.ac.lk check passed, setting signed-in state");
+      debugLog("pdn.ac.lk check passed, setting signed-in state");
       setUser(userObject);
       localStorage.setItem("user", JSON.stringify(userObject));
       dispatch(UserActions.getCurrentUserDetails(userObject));
       dispatch(TimeActions.setStartTime());
     } else {
-      console.log(
-        "[SignIn] pdn.ac.lk check FAILED for email:",
-        JSON.stringify(text)
-      );
+      debugLog("pdn.ac.lk check FAILED for email:", JSON.stringify(text));
       showAlert();
       firebase.auth().signOut();
     }
@@ -54,15 +70,15 @@ function SignIn() {
   }
 
   function handleSignInClick() {
-    console.log("[SignIn] sign-in button clicked, starting redirect");
+    debugLog("sign-in button clicked, starting redirect");
     const provider = new firebase.auth.GoogleAuthProvider();
     firebase.auth().signInWithRedirect(provider);
   }
 
   useEffect(() => {
-    console.log("[SignIn] mount effect running, location:", window.location.href);
+    debugLog("mount effect running, location:", window.location.href);
     const savedUser = localStorage.getItem("user");
-    console.log("[SignIn] localStorage 'user':", savedUser);
+    debugLog("localStorage 'user':", savedUser);
     if (savedUser) {
       const userObject = JSON.parse(savedUser);
       setUser(userObject);
@@ -81,13 +97,13 @@ function SignIn() {
       .auth()
       .getRedirectResult()
       .then((result) => {
-        console.log(
-          "[SignIn] getRedirectResult resolved, user:",
-          result && result.user
+        debugLog(
+          "getRedirectResult resolved, user email:",
+          result && result.user && result.user.email
         );
       })
       .catch((error) => {
-        console.error("[SignIn] Google sign-in redirect failed:", error);
+        debugLog("getRedirectResult FAILED:", error && error.code, error && error.message);
         showAlert();
       });
 
@@ -95,7 +111,7 @@ function SignIn() {
     // Firebase's auth state changes, including right after a redirect
     // completes, regardless of who else already touched getRedirectResult().
     const unsubscribe = firebase.auth().onAuthStateChanged((fbUser) => {
-      console.log("[SignIn] onAuthStateChanged fired, fbUser:", fbUser);
+      debugLog("onAuthStateChanged fired, fbUser:", fbUser && fbUser.email);
       if (fbUser) {
         const userObject = {
           email: fbUser.email,
