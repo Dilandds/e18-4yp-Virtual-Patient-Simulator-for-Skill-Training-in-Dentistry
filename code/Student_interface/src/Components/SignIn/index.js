@@ -69,10 +69,43 @@ function SignIn() {
     });
   }
 
+  // Popup rather than redirect. signInWithRedirect navigates away to
+  // authDomain (vps-2k25-app.firebaseapp.com) and has to hand the result
+  // back to this origin (vps-2k25-app-student.firebaseapp.com) through
+  // browser storage. Those are different domains, so storage partitioning
+  // silently drops the handoff: sign-in succeeds on Google's side but
+  // neither getRedirectResult() nor onAuthStateChanged ever resolves here.
+  // A popup keeps this page alive and passes the credential back over
+  // postMessage to window.opener, so no cross-domain storage is involved.
   function handleSignInClick() {
-    debugLog("sign-in button clicked, starting redirect");
+    debugLog("sign-in button clicked, opening popup");
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithRedirect(provider);
+    firebase
+      .auth()
+      .signInWithPopup(provider)
+      .then((result) => {
+        debugLog(
+          "signInWithPopup resolved, user email:",
+          result && result.user && result.user.email
+        );
+        // onAuthStateChanged also fires and calls completeSignIn; this is
+        // just for visibility into the popup's own outcome.
+      })
+      .catch((error) => {
+        debugLog(
+          "signInWithPopup FAILED:",
+          error && error.code,
+          error && error.message
+        );
+        // Don't show the "wrong account" alert for a user-cancelled popup.
+        if (
+          error &&
+          error.code !== "auth/popup-closed-by-user" &&
+          error.code !== "auth/cancelled-popup-request"
+        ) {
+          showAlert();
+        }
+      });
   }
 
   useEffect(() => {
