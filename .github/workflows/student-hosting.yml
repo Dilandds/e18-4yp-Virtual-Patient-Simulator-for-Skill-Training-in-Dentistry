@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'code/Student_interface/**'
+      - 'firebase.json'
   workflow_dispatch:
 
 jobs:
@@ -16,6 +17,8 @@ jobs:
         working-directory: ./code/Student_interface
     steps:
       - uses: actions/checkout@v4
+       with:
+          lfs: true
       - run: npm install --legacy-peer-deps && npm run build
         env:
           CI: false
