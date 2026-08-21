@@ -25,15 +25,15 @@
       ],
       "headers": [
         {
-          "source": "**",
+          "source": "/unity/**",
           "headers": [
             {
               "key": "Cross-Origin-Opener-Policy",
-              "value": "restrict-properties"
+              "value": "same-origin"
             },
             {
               "key": "Cross-Origin-Embedder-Policy",
-              "value": "credentialless"
+              "value": "require-corp"
             }
           ]
         }
