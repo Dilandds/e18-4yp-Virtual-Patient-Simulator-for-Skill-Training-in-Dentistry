@@ -17,7 +17,7 @@ jobs:
         working-directory: ./code/Student_interface
     steps:
       - uses: actions/checkout@v4
-       with:
+        with:
           lfs: true
       - run: npm install --legacy-peer-deps && npm run build
         env:
