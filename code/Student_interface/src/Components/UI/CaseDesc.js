@@ -92,28 +92,25 @@ const CaseDesc = () => {
     };
 
     const handleClick = () => {
+        // Award marks per SELECTED QUESTION, using the `required` flag each
+        // question already carries from the section it was picked from
+        // (see handleSection/handleSelect above).
+        //
+        // This used to be recomputed here from `selectedQIds` by looking up
+        // `questions[category][index]` for every category, matching purely
+        // by array index with no idea which category the id actually came
+        // from -- so a question at index 2 in one section could get scored
+        // using a same-index question from a completely different section.
+        // `selectedQ` already has the right question (and its `required`
+        // flag) attached at selection time, so use that directly instead.
         let totalMarks = 0;
-        selectedQIds.forEach((id) => {
-            for (const category in questions) {
-                const question = (questions[category] || []).find((q, index) => index === id);
-                if (question && question.required !== undefined) {
-                    totalMarks += question.required ? 10 : -5;
-                }
+        selectedQ.forEach((question) => {
+            if (question && question.required !== undefined) {
+                totalMarks += question.required ? 10 : -5;
             }
         });
 
-        const sel = selectedQ.map((item) => item.q);
-        const correctAnswersArray = [];
-        for (const category in questions) {
-            const correctAnswers = (questions[category] || []).filter(
-                (question) => question.required
-            );
-            correctAnswersArray.push(...correctAnswers);
-        }
-
         console.log("Total Marks:", totalMarks);
-        console.log("selected ans", sel);
-        console.log("correct ans", correctAnswersArray);
         window.scrollTo({ top: 0, behavior: "smooth" });
 
         setTimeout(() => {

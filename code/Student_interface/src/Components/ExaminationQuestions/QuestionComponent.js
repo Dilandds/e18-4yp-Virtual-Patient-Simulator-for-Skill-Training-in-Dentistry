@@ -1,13 +1,12 @@
 import React from "react";
 import CheckboxQuestion from "./questionType/CheckboxQuestion";
 
-const QuestionComponent = ({ question }) => {
-    console.log("question from question component", question);
-    return (
-        <div>
-            <CheckboxQuestion question={question} />
-        </div>
-    );
+const QuestionComponent = ({ question, onAnswerChange }) => {
+  return (
+    <div>
+      <CheckboxQuestion question={question} onAnswerChange={onAnswerChange} />
+    </div>
+  );
 };
 
 export default QuestionComponent;

@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import React from 'react';
 import TitleBox from "../TitleBox";
 import QuestionBox from "../QuestionBox";
 import QuestionComponent from "../QuestionComponent";
-import BASE_URL from "../../../config";
-import { CaseContext } from "../../../context/CaseContext";
+import { useExamSection } from "../useExamSection";
 
 const PeriodontalScreening = ({ onComplete }) => {
-    const { selectedCaseDetails } = useContext(CaseContext);
     const boxStyle = {
         width: "30%",
         height: "100vh",
@@ -17,9 +14,6 @@ const PeriodontalScreening = ({ onComplete }) => {
         marginRight: "300px",
     };
 
-    const [questions, setQuestions] = useState([]);
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-
     const buttonStyle = {
         fontSize: "14px",
         width: "300px",
@@ -27,41 +21,8 @@ const PeriodontalScreening = ({ onComplete }) => {
         backgroundColor: "dodgerblue",
     };
 
-    useEffect(() => {
-        const fetchQuestions = async () => {
-            try {
-                const url = `${BASE_URL}examintionQuestions/getAllExaminationQuestionsBySectionName?mainTypeName=${selectedCaseDetails.mainComplaintType}&complaintTypeName=${selectedCaseDetails.caseName}&caseId=${selectedCaseDetails.caseId}&sectionName=PeriodontalScreeningQuestions`;
-                console.log("url", url);
-                const response = await axios.get(url);
-                console.log("response perdotelscreening", response);
-                const data = response.data.data.map(item => ({
-                    question: item.question,
-                    questionImageUrl: item.questionImageUrl || null,
-                    answers: item.choices?.answerChoices?.reduce((acc, choice) => {
-                        acc[choice.text] = {
-                            isChecked: false,
-                            imageUrl: choice.imageUrl || null
-                        };
-                        return acc;
-                    }, {}) || {}
-                }));
-                setQuestions(data);
-            } catch (error) {
-                console.error('Error fetching questions:', error);
-            }
-        };
-
-        fetchQuestions();
-    }, []);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (currentQuestionIndex < questions.length - 1) {
-            setCurrentQuestionIndex(currentQuestionIndex + 1);
-        } else {
-            if (onComplete) onComplete();
-        }
-    };
+    const { loading, currentQuestion, toggleAnswer, handleSubmit } =
+        useExamSection("PeriodontalScreeningQuestions", onComplete);
 
     const title = "INTRA ORAL EXAMINATION";
     const subTitle = "Periodontal Screening";
@@ -70,8 +31,8 @@ const PeriodontalScreening = ({ onComplete }) => {
         <div style={boxStyle}>
             <TitleBox title={title} subTitle={subTitle} />
             <QuestionBox>
-                {questions.length > 0 && (
-                    <QuestionComponent question={questions[currentQuestionIndex]} />
+                {!loading && currentQuestion && (
+                    <QuestionComponent question={currentQuestion} onAnswerChange={toggleAnswer} />
                 )}
             </QuestionBox>
             <button style={buttonStyle} onClick={handleSubmit}>

@@ -14,6 +14,12 @@ import { PersistGate } from 'redux-persist/integration/react';
 import storage from 'redux-persist/lib/storage';
 import {CaseProvider} from "./context/CaseContext";
 import {StepProvider} from "./context/StepContext"; // defaults to localStorage for web
+import { installUnityCaseRequestInterceptor } from "./unityCaseRequestInterceptor";
+
+// Installed at startup, before the Unity player can issue any request, so
+// Unity's hardcoded caseTeeth/get URL gets this student's own case
+// identifiers appended. See unityCaseRequestInterceptor.js for why.
+installUnityCaseRequestInterceptor();
 
 const persistConfig = {
   key: 'root',

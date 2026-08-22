@@ -1,15 +1,48 @@
 import "./Chart.css";
 import BackTooth from "../DentalChartTooth/BackTooth.jsx";
 import FrontTooth from "../DentalChartTooth/FrontTooth.jsx";
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Box, Button, Grid } from "@mui/material";
+import axios from "axios";
 import TitleBox from "../ExaminationQuestions/TitleBox.js";
 import QuestionBox from "../ExaminationQuestions/QuestionBox.js";
 import QuestionComponent from "../ExaminationQuestions/QuestionComponent.js";
-import { Margin } from "@mui/icons-material";
+import { CaseContext } from "../../context/CaseContext";
+import BASE_URL from "../../config";
+
+// The condition fields every tooth carries, in both the tutor's authored
+// chart and the student's chart below -- same shape on both sides, on
+// purpose, so they can be compared field-by-field.
+const CONDITION_FIELDS = [
+  "cracked",
+  "cavity",
+  "amalgamFilling",
+  "CompositeFilling",
+  "Crown",
+  "Veneer",
+  "discolouration",
+  "partiallyErupted",
+];
+
+// A short, readable summary of what's notable about one tooth's chart
+// entry, for the feedback table -- e.g. ["cavity: cavity_shape_1"] or
+// ["no defects noted"].
+function summarizeTooth(tooth) {
+  const notes = [];
+  if (!tooth) return ["(not marked)"];
+  if (tooth.isPresent === "no") notes.push("missing");
+  CONDITION_FIELDS.forEach((field) => {
+    if (tooth[field] && tooth[field] !== "no") {
+      notes.push(`${field}: ${tooth[field]}`);
+    }
+  });
+  return notes.length ? notes : ["no defects noted"];
+}
 
 // DentalChart component
-const DentalChart = ({ onScoreSubmit, onComplete }) => {
+const DentalChart = ({ onComplete }) => {
+  const { selectedCaseDetails } = useContext(CaseContext);
+  const [tutorTeeth, setTutorTeeth] = useState(null);
   const [teethDetails, setTeethDetails] = useState([
     {
       discolouration: "no",
@@ -397,29 +430,38 @@ const DentalChart = ({ onScoreSubmit, onComplete }) => {
     },
   ]);
 
+  // Fetch the tutor's authored chart for this case (the same document Unity
+  // renders from, see caseTeethRoutes.js) so the student's marks can be
+  // graded against it on submit.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchTutorChart = async () => {
+      try {
+        const url =
+          `${BASE_URL}teethDetails/get` +
+          `?mainTypeName=${selectedCaseDetails.mainComplaintType}` +
+          `&complaintTypeName=${selectedCaseDetails.caseName}` +
+          `&caseId=${selectedCaseDetails.caseId}` +
+          `&sectionName=toothDetails`;
+        const response = await axios.get(url);
+        if (!cancelled) setTutorTeeth(response.data?.data?.Teeth || []);
+      } catch (error) {
+        console.error("Could not fetch tutor's dental chart:", error);
+        if (!cancelled) setTutorTeeth([]);
+      }
+    };
+    if (selectedCaseDetails?.caseId) fetchTutorChart();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCaseDetails]);
+
+  // Grades the student's chart against the tutor's, tooth by tooth: a tooth
+  // counts as correctly identified only if every condition field (and
+  // presence) matches exactly. Sends the result up the same way a graded
+  // exam section does (see useExamSection.js / ExaminationQuestionSections.js)
+  // so it folds into the same total score without any special-casing there.
   const handleSubmit = () => {
-    // const { score, totalCorrectAnswers } = calculateScore(
-    //   allToothSelections,
-    //   answer
-    // );
-    // console.log(`The user's score is ${score} out of ${totalCorrectAnswers}.`);
-    //
-    // // Call the onScoreSubmit callback with the score data
-    // onScoreSubmit(score, totalCorrectAnswers);
-    onComplete();
-  };
-
-  const handleToothUpdate = (toothDetail) => {
-    setTeethDetails((prevDetails) => {
-      const updatedDetails = prevDetails.filter(
-        (detail) => detail.toothId !== toothDetail.toothId
-      );
-      return [...updatedDetails, toothDetail];
-    });
-  };
-
-  const handleSendDetails = async () => {
-    console.log("teethDetails", teethDetails);
     const formattedDetails = teethDetails.map((detail) => ({
       toothId: detail.toothId,
       isPresent: detail.isPresent,
@@ -433,6 +475,45 @@ const DentalChart = ({ onScoreSubmit, onComplete }) => {
       partiallyErupted:
         detail.status === "partiallyErupted" ? detail.shape : "no",
     }));
+
+    const tutorChart = tutorTeeth || [];
+    const details = formattedDetails.map((studentTooth) => {
+      const tutorTooth = tutorChart.find(
+        (t) => t.toothId === studentTooth.toothId
+      );
+      const isCorrect =
+        !!tutorTooth &&
+        studentTooth.isPresent === tutorTooth.isPresent &&
+        CONDITION_FIELDS.every(
+          (field) => studentTooth[field] === tutorTooth[field]
+        );
+      return {
+        question: studentTooth.toothId,
+        selected: summarizeTooth(studentTooth),
+        correct: summarizeTooth(tutorTooth),
+        isCorrect,
+      };
+    });
+
+    const correct = details.filter((d) => d.isCorrect).length;
+
+    if (onComplete) {
+      onComplete({
+        sectionName: "DentalChart",
+        total: details.length,
+        correct,
+        details,
+      });
+    }
+  };
+
+  const handleToothUpdate = (toothDetail) => {
+    setTeethDetails((prevDetails) => {
+      const updatedDetails = prevDetails.filter(
+        (detail) => detail.toothId !== toothDetail.toothId
+      );
+      return [...updatedDetails, toothDetail];
+    });
   };
 
   const boxStyle = {
