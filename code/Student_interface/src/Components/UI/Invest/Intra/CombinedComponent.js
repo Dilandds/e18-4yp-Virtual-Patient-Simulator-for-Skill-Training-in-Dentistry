@@ -8,6 +8,20 @@ const CombinedComponent = () => {
     const sendToUnityRef = useRef(null);
     const [isUnityReady, setIsUnityReady] = useState(false);
 
+    // Clicking into the Unity canvas engages the browser's Pointer Lock API,
+    // which Unity uses for mouse-look camera control -- once locked, ALL
+    // mouse movement and clicks go to Unity, regardless of where on the page
+    // the cursor visually is, including over the question/dental chart box
+    // to the left. The old platform's answer was "press Escape to release
+    // pointer lock" (still in Instructions.js's "Screen Control" bullet),
+    // but that only works if the current Unity build still uses pointer lock
+    // the same way and honors Escape -- something not verifiable from the
+    // web code alone. This button doesn't depend on any of that: setting
+    // pointer-events:none on the Unity container means the browser never
+    // delivers mouse events to the canvas at all while locked, so it can't
+    // capture input no matter what Unity is doing internally.
+    const [is3DLocked, setIs3DLocked] = useState(false);
+
     const handleUnityData = (data) => {
         console.log("Data received from Unity:", data);
         setUnityData(data);
@@ -53,6 +67,20 @@ const CombinedComponent = () => {
         flexGrow: 2, // Unity WebGL will take up the remaining space after the left side
         width: "calc(70% - 20px)", // Subtract the desired margin from the width
         marginRight: "20px", // Add a margin to the right of the Unity component
+        display: "flex",
+        flexDirection: "column",
+    };
+
+    const lockButtonStyle = {
+        margin: "8px 0",
+        padding: "8px 16px",
+        borderRadius: "6px",
+        border: "none",
+        cursor: "pointer",
+        fontWeight: "bold",
+        color: "white",
+        backgroundColor: is3DLocked ? "#c0392b" : "#27ae60",
+        alignSelf: "flex-start",
     };
 
     return (
@@ -64,7 +92,19 @@ const CombinedComponent = () => {
                 </div>
             </div>
             <div style={threeDContainerStyle}>
-                <ThreeD onUnityData={handleUnityData} onSendMessageToUnity={getSendMessageToUnity}/>
+                <button
+                    type="button"
+                    style={lockButtonStyle}
+                    onClick={() => setIs3DLocked((prev) => !prev)}
+                >
+                    {is3DLocked ? "🔒 3D View Locked — Click to Unlock" : "🔓 Lock 3D View"}
+                </button>
+                {/* This wrapper, not ThreeD itself, gets pointer-events:none --
+                    disabling input on the Unity component directly would also
+                    stop it receiving the click that re-enables it. */}
+                <div style={{ flex: 1, pointerEvents: is3DLocked ? "none" : "auto" }}>
+                    <ThreeD onUnityData={handleUnityData} onSendMessageToUnity={getSendMessageToUnity}/>
+                </div>
             </div>
         </div>
     );

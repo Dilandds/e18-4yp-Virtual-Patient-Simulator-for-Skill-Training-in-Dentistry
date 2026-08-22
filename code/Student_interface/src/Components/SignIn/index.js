@@ -39,25 +39,87 @@ function debugLog(...args) {
   }
 }
 
+// Accounts allowed to sign in regardless of the pdn.ac.lk check below --
+// for a specific known person (e.g. yourself) who wants to try the
+// platform but doesn't have a university email. To let someone in, add
+// their Google account email here (any case) and redeploy the Student
+// interface; remove it to revoke access.
+//
+// This only works when you know the email in advance. It doesn't help
+// with anonymous third-party reviewers -- see GUEST_ACCESS_CODE below for
+// that case instead.
+const BYPASS_EMAILS = ["dilandds97@gmail.com"];
+
+// For reviewers/testers whose email you *don't* know ahead of time: a
+// shared access code that unlocks a one-click guest sign-in (no Google
+// account, no pdn.ac.lk check at all), shown as a second option on the
+// login screen below. This is the actual equivalent of the tutor side's
+// hardcoded test@demo.com/Test1234 credential (see
+// Backend/functions/routes/teacherRoutes.js) -- a single shortcut anyone
+// who has it can use, rather than a per-person allowlist.
+//
+// Change this string and redeploy whenever you want to invalidate it (e.g.
+// after a review period ends), and only share it with the people who
+// should have it. Like BYPASS_EMAILS, this ships in the client bundle and
+// is visible to anyone who opens devtools -- it deters casual use, it
+// doesn't stop someone determined to find it, so don't treat it as a real
+// secret.
+const GUEST_ACCESS_CODE = "vps-review-2026";
+
 function SignIn() {
   const [user, setUser] = useState({});
+  const [guestCode, setGuestCode] = useState("");
+  const [guestError, setGuestError] = useState("");
   const isSignIn = useSelector((state) => state.user.isSignIn);
   const dispatch = useDispatch();
+
+  // Shared by the real Google sign-in path and the guest-code path below --
+  // both just need to record who's "logged in" locally; nothing here talks
+  // to Firebase Auth.
+  function signInLocally(userObject) {
+    setUser(userObject);
+    localStorage.setItem("user", JSON.stringify(userObject));
+    dispatch(UserActions.getCurrentUserDetails(userObject));
+    dispatch(TimeActions.setStartTime());
+  }
 
   function completeSignIn(userObject) {
     debugLog("completeSignIn called with:", userObject);
     var text = userObject.email || "";
-    if (text.match("pdn.ac.lk")) {
-      debugLog("pdn.ac.lk check passed, setting signed-in state");
-      setUser(userObject);
-      localStorage.setItem("user", JSON.stringify(userObject));
-      dispatch(UserActions.getCurrentUserDetails(userObject));
-      dispatch(TimeActions.setStartTime());
+    var isBypassEmail = BYPASS_EMAILS.some(
+      (allowed) => allowed.toLowerCase() === text.toLowerCase()
+    );
+    if (isBypassEmail || text.match("pdn.ac.lk")) {
+      debugLog(
+        isBypassEmail ? "bypass email matched" : "pdn.ac.lk check passed",
+        ", setting signed-in state"
+      );
+      signInLocally(userObject);
     } else {
       debugLog("pdn.ac.lk check FAILED for email:", JSON.stringify(text));
       showAlert();
       firebase.auth().signOut();
     }
+  }
+
+  // Guest path: no Google account needed at all, just the shared access
+  // code. Each guest gets a random id so multiple reviewers signing in at
+  // the same time don't collide on the same student results doc (see
+  // examResultsRoutes.js, which stores results per studentId).
+  function handleGuestAccess() {
+    if (guestCode.trim() !== GUEST_ACCESS_CODE) {
+      setGuestError("That code isn't right. Check with whoever gave it to you.");
+      return;
+    }
+    setGuestError("");
+    const guestId = "guest-" + Math.random().toString(36).slice(2, 10);
+    debugLog("guest access code accepted, signing in as:", guestId);
+    signInLocally({
+      email: `${guestId}@guest.vps-demo`,
+      name: "Guest Reviewer",
+      picture: null,
+      sub: guestId,
+    });
   }
 
   function showAlert() {
@@ -190,6 +252,32 @@ function SignIn() {
             Sign in with Google
           </Button>
           <p id="errorM"></p>
+        </div>
+        <div
+          className="authent"
+          style={{ marginTop: "24px", textAlign: "center" }}
+        >
+          <p style={{ marginBottom: "8px" }}>
+            Reviewing or testing the platform? Enter your access code:
+          </p>
+          <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+            <input
+              type="text"
+              value={guestCode}
+              onChange={(e) => setGuestCode(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleGuestAccess();
+              }}
+              placeholder="Access code"
+              style={{ padding: "6px 10px", borderRadius: "4px", border: "none" }}
+            />
+            <Button variant="secondary" onClick={handleGuestAccess}>
+              Continue as Guest
+            </Button>
+          </div>
+          {guestError && (
+            <p style={{ color: "#ffb3b3", marginTop: "8px" }}>{guestError}</p>
+          )}
         </div>
       </div>
     );
