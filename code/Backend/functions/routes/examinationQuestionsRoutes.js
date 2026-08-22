@@ -161,6 +161,96 @@ router.post(
   }
 );
 
+// Updates an existing question's text and/or answer choices in place.
+// Added to fix questions that were saved incomplete (e.g. answer choices
+// with blank text and no correct answer marked) -- there was previously no
+// way to correct a question once created, only add a new one alongside it.
+//
+// Deliberately narrow: only `question` and `answerChoices` can be changed.
+// `questionImageUrl` and `questionType` are left untouched, since changing
+// those would mean re-uploading files, which is out of scope here.
+//
+// Body: { mainTypeName, complaintTypeName, caseId, sectionName, questionId,
+//         question, answerChoices: [{ text, isCorrect, imageUrl? }, ...] }
+router.put(
+  "/updateExaminationQuestion",
+  bodyParser.json(),
+  async (req, res) => {
+    try {
+      const {
+        mainTypeName,
+        complaintTypeName,
+        caseId,
+        sectionName,
+        questionId,
+        question,
+        answerChoices,
+      } = req.body;
+
+      if (
+        !mainTypeName ||
+        !complaintTypeName ||
+        !caseId ||
+        !sectionName ||
+        !questionId
+      ) {
+        return res.status(400).json({
+          error:
+            "Missing identifiers. Supply mainTypeName, complaintTypeName, caseId, sectionName and questionId.",
+        });
+      }
+
+      const questionRef = db
+        .collection(COLLECTION_NAME)
+        .doc(mainTypeName)
+        .collection(complaintTypeName)
+        .doc(caseId)
+        .collection(sectionName)
+        .doc(questionId);
+
+      const existing = await questionRef.get();
+      if (!existing.exists) {
+        return res.status(404).json({ error: "No such question." });
+      }
+
+      const existingQuestion = existing.data().Question || {};
+      const updatedQuestion = { ...existingQuestion };
+
+      if (typeof question === "string" && question.length > 0) {
+        updatedQuestion.question = question;
+      }
+
+      if (Array.isArray(answerChoices)) {
+        // Preserve whichever shape this question already used (a plain
+        // array for per-choice images, or {answerChoices: [...]} otherwise)
+        // -- see createExaminationQuestion above for why there are two.
+        if (Array.isArray(existingQuestion.choices)) {
+          updatedQuestion.choices = existingQuestion.choices.map(
+            (choice, idx) => ({
+              ...choice,
+              text: answerChoices[idx]?.text ?? choice.text,
+              isCorrect: answerChoices[idx]?.isCorrect ?? choice.isCorrect,
+            })
+          );
+        } else {
+          updatedQuestion.choices = { answerChoices };
+        }
+      }
+
+      await questionRef.update({ Question: updatedQuestion });
+
+      res.status(200).json({
+        message: "Question updated successfully.",
+        questionId,
+        Question: updatedQuestion,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
+
 // get all questions
 router.get("/getAllExaminationQuestionsBySectionName", async (req, res) => {
   try {

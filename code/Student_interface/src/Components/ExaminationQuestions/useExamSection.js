@@ -43,7 +43,18 @@ export function useExamSection(sectionName, onComplete) {
           `&sectionName=${sectionName}`;
         const response = await axios.get(url);
         const data = (response.data.data || []).map((item) => {
-          const choices = item.choices?.answerChoices || [];
+          // The backend stores `choices` two different ways depending on how
+          // the question was authored: a plain array when the tutor uploaded
+          // a separate image per answer choice, or {answerChoices: [...]}
+          // when it didn't (see examinationQuestionsRoutes.js's
+          // createExaminationQuestion). Only the second shape used to be
+          // read here, so any question with per-choice images silently
+          // rendered zero answer choices -- e.g. "Select the diagram which
+          // denotes code 3" in the Periodontal section.
+          const rawChoices = item.choices;
+          const choices = Array.isArray(rawChoices)
+            ? rawChoices
+            : rawChoices?.answerChoices || [];
           const isMultiAnswer = (item.questionType || "")
             .toLowerCase()
             .includes("multipleanswer");
