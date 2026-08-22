@@ -35,4 +35,7 @@ app.use("/api/examintionQuestions", examintionQuestionsRoutes);
 const caseTeethRoutes = require("./routes/caseTeethRoutes");
 app.use("/api/caseTeeth", caseTeethRoutes);
 
+const examResultsRoutes = require("./routes/examResultsRoutes");
+app.use("/api/examResults", examResultsRoutes);
+
 exports.api = functions.https.onRequest(app);
