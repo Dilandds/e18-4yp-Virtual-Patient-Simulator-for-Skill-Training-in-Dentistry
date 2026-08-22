@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { Grid, Paper, Container, Typography } from "@mui/material";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Grid, Paper, Container, Typography, Snackbar, Alert } from "@mui/material";
 import img3 from "../../Images/newBack.jpg";
 import Navbar from "../Navbar";
 import CaseCard from "./caseSelect/CaseCard";
@@ -14,8 +14,16 @@ function CaseSelect() {
     const { allCaseData } = useSelector((state) => state.caseSelected);
 
     const navigate = useNavigate();
+    const location = useLocation();
     const [cases, setCase] = useState([]);
     const dispatch = useDispatch();
+
+    // CaseDesc.js and ExaminationQuestionSections.js redirect back here (with
+    // a `message`) when a page refresh mid-flow reset the in-memory case
+    // selection -- surface that so it doesn't just look like an unexplained
+    // bounce back to case selection.
+    const [showResetNotice, setShowResetNotice] = useState(!!location.state?.message);
+    const resetMessage = location.state?.message;
 
     const handleClick = () => {
         console.log("button clicked");
@@ -66,6 +74,16 @@ function CaseSelect() {
                     ))}
                 </Grid>
             </Container>
+            <Snackbar
+                open={showResetNotice}
+                autoHideDuration={8000}
+                onClose={() => setShowResetNotice(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setShowResetNotice(false)} severity="info" sx={{ width: '100%' }}>
+                    {resetMessage}
+                </Alert>
+            </Snackbar>
         </div>
     );
 }

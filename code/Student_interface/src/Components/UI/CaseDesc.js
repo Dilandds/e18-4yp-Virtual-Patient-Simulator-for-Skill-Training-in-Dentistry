@@ -33,10 +33,19 @@ const CaseDesc = () => {
     const [Section, setSection] = useState("");
     const [ans, setAns] = useState("");
     const [selectedSection, setSelectedSection] = useState(null);
+    // Keys must match the category names the tutor actually authors under
+    // (Tutor_interface/src/pages/historyQuestions/HistoryQuestions.jsx's
+    // `initialSections`) -- this used to say 'Smoking and drinking habits'
+    // while the tutor side saves that category as 'Habits', so picking
+    // "Habits" from the section dropdown below always looked up a key that
+    // didn't exist in the fetched data and silently showed zero questions.
+    // (This default only matters until the fetch below replaces it wholesale
+    // with whatever the API returns, but it's what a student sees briefly
+    // and what handleSection falls back to if a category has no questions.)
     const [questions, setQuestions] = useState({
         'General Questions': [],
         'Medical History': [],
-        'Smoking and drinking habits': [],
+        'Habits': [],
         'Dietary history': [],
         'Others': []
     });
@@ -151,6 +160,27 @@ const CaseDesc = () => {
         endOfContentRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [selectedQ]);
 
+    // selectedCaseDetails only ever lives in memory (see context/CaseContext.js
+    // -- it's a plain useState, nothing writes it to localStorage/sessionStorage).
+    // A hard refresh remounts the whole app and resets it to null even though
+    // the student is still signed in (Redux's isSignIn survives refresh via
+    // redux-persist, so PrivateRoute lets them straight through to this page
+    // anyway). Without this guard, `selectedCaseDetails.caseName` below throws
+    // trying to read a property off null, which is the "refresh breaks the UI"
+    // bug -- send them back to pick the case again instead of crashing.
+    useEffect(() => {
+        if (!selectedCaseDetails) {
+            navigate("/caseSelect", {
+                replace: true,
+                state: { message: "Your case was reset by the page refresh. Please select it again to continue." },
+            });
+        }
+    }, [selectedCaseDetails, navigate]);
+
+    if (!selectedCaseDetails) {
+        return null;
+    }
+
     return (
         <div
             className="app"
@@ -181,6 +211,7 @@ const CaseDesc = () => {
                         handleSelect={handleSelect}
                         questionsForDropdown={questionsForDropdown}
                         selectedCaseDetails={selectedCaseDetails}
+                        selectedSection={selectedSection}
                     />
                     <SectionTitle Section={Section} />
                 </Grid>

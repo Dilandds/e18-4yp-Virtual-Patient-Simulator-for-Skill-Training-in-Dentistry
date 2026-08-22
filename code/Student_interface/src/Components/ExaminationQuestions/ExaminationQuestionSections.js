@@ -34,6 +34,27 @@ const ExaminationQuestionSections = () => {
         setSection(step);
     }, [step]);
 
+    // selectedCaseDetails (CaseContext) and step (StepContext) only ever live
+    // in memory -- a hard refresh mid-exam remounts the app and resets both
+    // (selectedCaseDetails to null, step to 0), even though the student is
+    // still signed in via redux-persist. Without this, each Steps/*.js
+    // component's useExamSection hook just never fetches (it guards on
+    // `selectedCaseDetails?.caseId`), so the page sits on a permanent loading
+    // spinner instead of showing anything -- send the student back to pick
+    // the case again instead of leaving them stuck.
+    useEffect(() => {
+        if (!selectedCaseDetails) {
+            navigate("/caseSelect", {
+                replace: true,
+                state: { message: "Your case was reset by the page refresh. Please select it again to continue." },
+            });
+        }
+    }, [selectedCaseDetails, navigate]);
+
+    if (!selectedCaseDetails) {
+        return null;
+    }
+
     // Combines every graded section's score into one result, saves it, and
     // sends the student to the feedback page. DentalChart currently has no
     // scoring of its own (see DentalChart.js), so it isn't part of the exam

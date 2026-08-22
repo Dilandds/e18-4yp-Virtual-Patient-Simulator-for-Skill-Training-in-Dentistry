@@ -3,25 +3,41 @@ import { Grid } from '@mui/material';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 
-const Dropdowns = ({ handleSection, handleSelect, questionsForDropdown, selectedCaseDetails }) => {
+// The section list here must match the category names a tutor actually
+// authors questions under (Tutor_interface's HistoryQuestions.jsx ->
+// `initialSections`: 'General Questions', 'Medical History', 'Habits',
+// 'Dietary history', 'Others'). This used to say "Smoking and drinking
+// habits" instead of "Habits" -- selecting it always looked up a category
+// key that didn't exist in the fetched questions object, so it silently
+// showed "No questions available" no matter how many questions a tutor had
+// written under Habits.
+const SECTIONS = ['General Questions', 'Medical History', 'Habits', 'Dietary history', 'Others'];
+
+const Dropdowns = ({ handleSection, handleSelect, questionsForDropdown, selectedCaseDetails, selectedSection }) => {
     return (
         <Grid container style={{ marginLeft: "1px" }}>
             <Grid item xs={6}>
                 <Dropdown
                     className="phddown1"
-                    title="Select the Section"
                     id="dropdown-menu-align-right"
                     onSelect={handleSection}
                 >
+                    {/* Previously this always read "Select the section", even
+                        after picking one -- there was no way to tell which
+                        section (if any) was currently selected. */}
                     <Dropdown.Toggle variant="success" id="dropdown-basic">
-                        Select the section
+                        {selectedSection || "Select the section"}
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
-                        <Dropdown.Item eventKey="General Questions">General Questions</Dropdown.Item>
-                        <Dropdown.Item eventKey="Medical History">Medical History</Dropdown.Item>
-                        <Dropdown.Item eventKey="Smoking and drinking habits">Smoking and drinking habits</Dropdown.Item>
-                        <Dropdown.Item eventKey="Dietary history">Dietary history</Dropdown.Item>
-                        <Dropdown.Item eventKey="Others">Others</Dropdown.Item>
+                        {SECTIONS.map((section) => (
+                            <Dropdown.Item
+                                key={section}
+                                eventKey={section}
+                                active={selectedSection === section}
+                            >
+                                {section}
+                            </Dropdown.Item>
+                        ))}
                     </Dropdown.Menu>
                 </Dropdown>
             </Grid>
