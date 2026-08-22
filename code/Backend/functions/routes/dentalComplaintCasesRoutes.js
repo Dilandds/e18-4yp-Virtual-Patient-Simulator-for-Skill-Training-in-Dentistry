@@ -230,6 +230,143 @@ router.post(
 );
  
 
+// UPDATE A CASE'S BASIC DETAILS (scenario text, and optionally a new
+// thumbnail image). This is the counterpart to POST /createCase -- it was
+// missing entirely, so a tutor had no way to fix a case's scenario or swap
+// its thumbnail once created, only add a brand new case alongside it.
+// Deliberately narrow: caseId/mainComplaintType/caseName themselves aren't
+// editable here, since they're also the Firestore path segments the case
+// (and all its subcollections) live under -- renaming them would mean
+// moving the whole document tree, which is out of scope.
+// PUT, multipart/form-data
+// ROUTE : /api/dentalComplaintCases/updateCase
+router.put(
+  "/updateCase",
+  fileParser,
+  bodyParser.urlencoded({ extended: true }),
+  async (req, res) => {
+    try {
+      const { mainTypeName, complaintTypeName, caseId, caseScenario } =
+        req.body;
+
+      if (!mainTypeName || !complaintTypeName || !caseId) {
+        return res.status(400).json({
+          error:
+            "Missing identifiers. Supply mainTypeName, complaintTypeName and caseId.",
+        });
+      }
+
+      const caseRef = db
+        .collection(COLLECTION_NAME)
+        .doc(mainTypeName)
+        .collection(complaintTypeName)
+        .doc(caseId);
+
+      const existing = await caseRef.get();
+      if (!existing.exists) {
+        return res.status(404).json({ error: "No such case." });
+      }
+
+      const updates = {};
+
+      if (typeof caseScenario === "string" && caseScenario.length > 0) {
+        updates.caseScenario = caseScenario;
+      }
+
+      // A new thumbnail is optional -- editing just the scenario text
+      // shouldn't force re-uploading the image every time.
+      if (req.files && req.files.length > 0) {
+        const file = req.files[0];
+        const fileStream = Readable.from(file.buffer);
+        const currentDateTime = moment().format("YYYYMMDD_HHmmss");
+        const fileUpload = bucket.file(
+          `Images/${currentDateTime}_${file.originalname}`
+        );
+
+        await new Promise((resolve, reject) => {
+          fileStream
+            .pipe(
+              fileUpload.createWriteStream({
+                metadata: { contentType: file.mimetype },
+              })
+            )
+            .on("error", reject)
+            .on("finish", resolve);
+        });
+
+        const [downloadURL] = await fileUpload.getSignedUrl({
+          action: "read",
+          expires: "12-31-9999",
+        });
+        updates.thumbnailImageURL = downloadURL;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({
+          error:
+            "Nothing to update -- supply caseScenario and/or a new image.",
+        });
+      }
+
+      await caseRef.update(updates);
+
+      return res.status(200).json({
+        status: "Success",
+        message: "Case updated successfully.",
+        caseId,
+        ...updates,
+      });
+    } catch (error) {
+      console.error("Error updating case:", error);
+      res.status(500).json({ error: "Failed to update case" });
+    }
+  }
+);
+
+// DELETE A CASE, including everything filed underneath it -- examination
+// question sections, the dental chart's toothDetails, and any students'
+// saved results (dentalComplaintCases/{main}/{complaint}/{caseId}/**).
+// Firestore doesn't cascade-delete subcollections on its own (a plain
+// .delete() on the case doc would silently orphan all of that data), so
+// this uses the Admin SDK's recursiveDelete to walk and remove the whole
+// subtree. There was no delete route for a case at all before this.
+// DELETE
+// ROUTE : /api/dentalComplaintCases/deleteCase?mainTypeName=...&complaintTypeName=...&caseId=...
+router.delete("/deleteCase", async (req, res) => {
+  try {
+    const { mainTypeName, complaintTypeName, caseId } = req.query;
+
+    if (!mainTypeName || !complaintTypeName || !caseId) {
+      return res.status(400).json({
+        error:
+          "Missing identifiers. Supply mainTypeName, complaintTypeName and caseId.",
+      });
+    }
+
+    const caseRef = db
+      .collection(COLLECTION_NAME)
+      .doc(mainTypeName)
+      .collection(complaintTypeName)
+      .doc(caseId);
+
+    const existing = await caseRef.get();
+    if (!existing.exists) {
+      return res.status(404).json({ error: "No such case." });
+    }
+
+    await db.recursiveDelete(caseRef);
+
+    return res.status(200).json({
+      status: "Success",
+      message: "Case and all its associated data were deleted.",
+      caseId,
+    });
+  } catch (error) {
+    console.error("Error deleting case:", error);
+    res.status(500).json({ error: "Failed to delete case" });
+  }
+});
+
 // UPDATE CASE DETAILS
 // PUT
 // ROUTE : /api/dentalComplaintCases/updateHistoryTakingQuestions

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Tooltip, ListItemIcon } from '@mui/material';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import AddBox from '@mui/icons-material/AddBox';
+import ListAltIcon from '@mui/icons-material/ListAlt';
 import Logout from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import { styled } from '@mui/material/styles';
@@ -92,6 +93,9 @@ const Navbar = () => {
                         <>
                             <Button startIcon={<AddBox />} color="inherit" onClick={handleCreateNewCase}>
                                 Create New Case
+                            </Button>
+                            <Button startIcon={<ListAltIcon />} color="inherit" onClick={() => navigate('/showCases')}>
+                                Manage Cases
                             </Button>
                             <Button startIcon={<LoginIcon />} color="inherit" onClick={() => navigate('/teacherSignup')}>
                                 Sign Up
