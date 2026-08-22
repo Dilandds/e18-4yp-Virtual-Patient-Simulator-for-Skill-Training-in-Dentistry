@@ -11,7 +11,7 @@ import './Feed.css';
 const FeedbackEval = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { sectionResults, examScore, historyMarks } = location.state || {};
+  const { sectionResults, examScore, historyMarks, historyDetails } = location.state || {};
 
   const goToHome = () => {
     navigate('/caseSelect');
@@ -39,6 +39,42 @@ const FeedbackEval = () => {
       {historyMarks !== null && historyMarks !== undefined && (
         <div>
           <strong>History Taking Marks: {historyMarks}</strong>
+        </div>
+      )}
+
+      {historyDetails && historyDetails.length > 0 && (
+        <div className="history-details">
+          <h4>History Taking: Expected Selection vs. What You Chose</h4>
+          {/* +10 for every relevant question asked, -5 for every one asked
+              that wasn't relevant -- see CaseDesc.js. A row only shows up
+              here if it was either relevant or actually asked; questions
+              that were neither aren't worth listing. */}
+          <table className="feedback-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Question</th>
+                <th>Expected to Ask?</th>
+                <th>Did You Ask It?</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyDetails.map((h, index) => (
+                <tr key={index}>
+                  <td>{h.category}</td>
+                  <td>{h.question}</td>
+                  <td>{h.expected ? 'Yes' : 'No'}</td>
+                  <td>{h.asked ? 'Yes' : 'No'}</td>
+                  <td>
+                    {h.expected && h.asked && '+10 (relevant, asked)'}
+                    {h.expected && !h.asked && '0 (relevant, missed)'}
+                    {!h.expected && h.asked && '-5 (not relevant, asked)'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

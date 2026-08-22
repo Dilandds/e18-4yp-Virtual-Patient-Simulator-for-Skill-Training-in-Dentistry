@@ -19,6 +19,7 @@ router.post("/submit", async (req, res) => {
       sectionResults,
       examScore,
       historyMarks,
+      historyDetails,
     } = req.body;
 
     if (!caseId || !mainTypeName || !complaintTypeName || !studentId) {
@@ -41,6 +42,7 @@ router.post("/submit", async (req, res) => {
         sectionResults: sectionResults || [],
         examScore: examScore ?? null,
         historyMarks: historyMarks ?? null,
+        historyDetails: historyDetails || null,
         submittedAt: new Date().toISOString(),
       },
       { merge: true }

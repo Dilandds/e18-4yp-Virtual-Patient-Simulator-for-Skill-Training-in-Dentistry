@@ -50,6 +50,11 @@ const ExaminationQuestionSections = () => {
         // exam directly in some flows, so this may be absent.
         const historyMarks =
             typeof caseData?.totalMarks === "number" ? caseData.totalMarks : null;
+        // The expected-vs-asked breakdown built in CaseDesc.js, if that page
+        // ran this session -- shown on the feedback page next to the marks.
+        const historyDetails = Array.isArray(caseData?.historyDetails)
+            ? caseData.historyDetails
+            : null;
 
         const payload = {
             caseId: selectedCaseDetails?.caseId,
@@ -59,6 +64,7 @@ const ExaminationQuestionSections = () => {
             sectionResults: results,
             examScore,
             historyMarks,
+            historyDetails,
         };
 
         try {
@@ -70,7 +76,7 @@ const ExaminationQuestionSections = () => {
         }
 
         navigate('/feedback', {
-            state: { sectionResults: results, examScore, historyMarks },
+            state: { sectionResults: results, examScore, historyMarks, historyDetails },
         });
     };
 

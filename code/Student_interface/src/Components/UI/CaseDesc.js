@@ -110,6 +110,29 @@ const CaseDesc = () => {
             }
         });
 
+        // For the feedback page: every question that was either relevant
+        // (tutor marked it required) or that the student actually asked,
+        // so the feedback page can show "expected" next to "what you
+        // chose" instead of just a bare mark total. Matched by question
+        // text rather than id, since `id` is only unique WITHIN a
+        // category (it's just that category's array index) -- the same
+        // reason the marks calculation above no longer uses ids either.
+        const selectedTexts = new Set(selectedQ.map((q) => q.q));
+        const historyDetails = [];
+        Object.entries(questions).forEach(([category, categoryQuestions]) => {
+            (categoryQuestions || []).forEach((q) => {
+                const asked = selectedTexts.has(q.questionText);
+                if (q.required || asked) {
+                    historyDetails.push({
+                        category,
+                        question: q.questionText,
+                        expected: !!q.required,
+                        asked,
+                    });
+                }
+            });
+        });
+
         console.log("Total Marks:", totalMarks);
         window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -117,7 +140,7 @@ const CaseDesc = () => {
             navigate("/page4");
         }, 500);
 
-        setCaseData(previousData => ({ ...previousData, totalMarks }));
+        setCaseData(previousData => ({ ...previousData, totalMarks, historyDetails }));
     };
 
     const handleClick1 = () => {
