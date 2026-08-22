@@ -31,8 +31,12 @@ const Diagnosis = ({ onComplete }) => {
         <div style={boxStyle}>
             <TitleBox title={title} subTitle={subTitle} />
             <QuestionBox>
-                {!loading && currentQuestion && (
+                {loading ? (
+                    <p>Loading...</p>
+                ) : currentQuestion ? (
                     <QuestionComponent question={currentQuestion} onAnswerChange={toggleAnswer} />
+                ) : (
+                    <p>No questions have been added for this section yet -- click Submit to continue.</p>
                 )}
             </QuestionBox>
             <button style={buttonStyle} onClick={handleSubmit}>

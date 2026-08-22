@@ -126,6 +126,26 @@ export function useExamSection(sectionName, onComplete) {
   const handleSubmit = useCallback(
     (e) => {
       if (e && e.preventDefault) e.preventDefault();
+
+      // Still fetching -- ignore a click that landed before we know whether
+      // this section has questions, rather than misreading the in-flight
+      // empty array as "this section genuinely has none."
+      if (loading) return;
+
+      // A section can genuinely have zero questions if the tutor hasn't
+      // authored any for it yet (e.g. a case still being built). Previously
+      // this fell through to `if (!q) return` below, so clicking SUBMIT
+      // silently did nothing -- the student was stuck on a blank screen
+      // with no way to move past it. Treat "nothing to answer" as an
+      // automatic pass-through instead: complete the section with zero
+      // questions/zero score so the rest of the exam is still reachable.
+      if (questions.length === 0) {
+        if (onComplete) {
+          onComplete({ sectionName, total: 0, correct: 0, details: [] });
+        }
+        return;
+      }
+
       const q = questions[currentIndex];
       if (!q) return;
 
@@ -159,7 +179,7 @@ export function useExamSection(sectionName, onComplete) {
         }
       }
     },
-    [questions, currentIndex, results, onComplete, sectionName]
+    [loading, questions, currentIndex, results, onComplete, sectionName]
   );
 
   return {
