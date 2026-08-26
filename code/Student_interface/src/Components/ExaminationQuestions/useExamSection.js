@@ -62,13 +62,22 @@ export function useExamSection(sectionName, onComplete) {
             question: item.question,
             questionImageUrl: item.questionImageUrl || null,
             isMultiAnswer,
-            correctAnswers: choices
-              .filter((choice) => choice.isCorrect)
-              .map((choice) => choice.text),
-            answers: choices.reduce((acc, choice) => {
-              acc[choice.text] = {
-                isChecked: false,
+            // Keyed by position ("choice-0", "choice-1", ...), NOT by the
+            // choice's own text. Image-only answer choices (e.g. "select
+            // the diagram which denotes code 3") are saved with blank
+            // text, and object keys must be unique -- keying by text meant
+            // every blank-text choice overwrote the last one, so only the
+            // final image-only choice ever survived into `answers` and the
+            // other three silently vanished (and grading compared against
+            // whichever one happened to survive, not necessarily the
+            // tutor-marked correct one). See CheckboxQuestion.js for the
+            // matching render-side fix.
+            answers: choices.reduce((acc, choice, idx) => {
+              acc[`choice-${idx}`] = {
+                text: choice.text || "",
                 imageUrl: choice.imageUrl || null,
+                isCorrect: !!choice.isCorrect,
+                isChecked: false,
               };
               return acc;
             }, {}),
@@ -98,21 +107,21 @@ export function useExamSection(sectionName, onComplete) {
 
   /** Toggle a choice for the CURRENT question. Radios clear other choices. */
   const toggleAnswer = useCallback(
-    (choiceText) => {
+    (choiceKey) => {
       setQuestions((prev) =>
         prev.map((q, idx) => {
           if (idx !== currentIndex) return q;
           const nextAnswers = { ...q.answers };
           if (q.isMultiAnswer) {
-            nextAnswers[choiceText] = {
-              ...nextAnswers[choiceText],
-              isChecked: !nextAnswers[choiceText].isChecked,
+            nextAnswers[choiceKey] = {
+              ...nextAnswers[choiceKey],
+              isChecked: !nextAnswers[choiceKey].isChecked,
             };
           } else {
-            Object.keys(nextAnswers).forEach((text) => {
-              nextAnswers[text] = {
-                ...nextAnswers[text],
-                isChecked: text === choiceText,
+            Object.keys(nextAnswers).forEach((key) => {
+              nextAnswers[key] = {
+                ...nextAnswers[key],
+                isChecked: key === choiceKey,
               };
             });
           }
@@ -149,17 +158,21 @@ export function useExamSection(sectionName, onComplete) {
       const q = questions[currentIndex];
       if (!q) return;
 
-      const selected = Object.entries(q.answers)
-        .filter(([, v]) => v.isChecked)
-        .map(([text]) => text);
-      const correctSet = [...q.correctAnswers].sort().join("|");
-      const selectedSet = [...selected].sort().join("|");
-      const isCorrect = selected.length > 0 && selectedSet === correctSet;
+      const entries = Object.entries(q.answers);
+      const selectedKeys = entries.filter(([, v]) => v.isChecked).map(([key]) => key);
+      const correctKeys = entries.filter(([, v]) => v.isCorrect).map(([key]) => key);
+      const selectedSet = [...selectedKeys].sort().join("|");
+      const correctSet = [...correctKeys].sort().join("|");
+      const isCorrect = selectedKeys.length > 0 && selectedSet === correctSet;
 
+      // Text is only for the results log below (e.g. a future review
+      // screen) -- grading above already happened on the stable keys, so a
+      // blank label on an image-only choice can't affect the score.
+      const labelFor = (key) => q.answers[key].text || "(image option)";
       const record = {
         question: q.question,
-        selected,
-        correct: q.correctAnswers,
+        selected: selectedKeys.map(labelFor),
+        correct: correctKeys.map(labelFor),
         isCorrect,
       };
       const nextResults = [...results, record];

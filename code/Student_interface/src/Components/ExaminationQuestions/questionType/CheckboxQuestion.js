@@ -7,6 +7,12 @@ import React from "react";
 // Previously this rendered inert checkboxes with no onChange handler at
 // all -- `checked` was hardcoded false and clicking one did nothing. That's
 // why answers were never being captured anywhere.
+//
+// Each choice is keyed by its position ("choice-0", ...), not by its own
+// text -- see useExamSection.js. Image-only choices are saved with blank
+// text, and using that blank text as the key/label used to make every
+// image-only choice but the last disappear (object keys collide), which is
+// why a "select the right diagram" question only ever showed one picture.
 const CheckboxQuestion = ({ question, onAnswerChange }) => {
   const { questionImageUrl, answers, isMultiAnswer } = question;
   const imageSrc = Array.isArray(questionImageUrl)
@@ -25,21 +31,21 @@ const CheckboxQuestion = ({ question, onAnswerChange }) => {
       )}
       {answers && (
         <form>
-          {Object.entries(answers).map(([option, { isChecked, imageUrl }]) => (
-            <div key={option}>
-              {(option || imageUrl) && (
+          {Object.entries(answers).map(([key, { text, isChecked, imageUrl }]) => (
+            <div key={key}>
+              {(text || imageUrl) && (
                 <label>
                   <input
                     type={isMultiAnswer ? "checkbox" : "radio"}
-                    name={isMultiAnswer ? option : "answer"}
+                    name={isMultiAnswer ? key : "answer"}
                     checked={isChecked}
-                    onChange={() => onAnswerChange && onAnswerChange(option)}
+                    onChange={() => onAnswerChange && onAnswerChange(key)}
                   />
-                  {option}
+                  {text}
                   {imageUrl && (
                     <img
                       src={imageUrl}
-                      alt={option}
+                      alt={text || "Answer option"}
                       style={{ width: "50px", marginLeft: "10px" }}
                     />
                   )}
