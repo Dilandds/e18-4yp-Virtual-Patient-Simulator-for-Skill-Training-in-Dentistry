@@ -13,7 +13,7 @@ import {
     HematologicalRecordings,
     SensibilityRecordings,
     Radiographs,
-    RecordPlaqueScore, TeacherSignup, QuestionsPreview, ExtraOralExamination, Investigations, DentalChartContainer
+    RecordPlaqueScore, TeacherSignup, QuestionsPreview, ExtraOralExamination, Investigations, DentalChartContainer, ManageQuestions
 } from "./pages/Pages.jsx";
 import MainLayout from "./layout/MainLayout.jsx";
 import "./styles/global.scss";
@@ -88,6 +88,10 @@ const App = () => {
                 {
                     path: "/showCases",
                     element: <PrivateRoute><ShowCases/></PrivateRoute>,
+                },
+                {
+                    path: "/manageQuestions",
+                    element: <PrivateRoute><ManageQuestions/></PrivateRoute>,
                 },
                 {
                     path: "/teacherSignup",

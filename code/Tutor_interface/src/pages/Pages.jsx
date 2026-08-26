@@ -16,6 +16,7 @@ export { default as Diagnosis } from "./diagnosis/Diagnosis.jsx";
 export {default as QuestionsPreview} from "./questionsPreview/QuestionsPreview.jsx"
 export {default as ExtraOralExamination} from "./extraOralExamination/ExtraOralExamination.jsx"
 export {default as Investigations} from "./investigations/Investigations.jsx"
+export {default as ManageQuestions} from "./manageQuestions/ManageQuestions.jsx"
 
 //============ Student ======================//
 

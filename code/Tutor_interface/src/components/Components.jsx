@@ -9,6 +9,7 @@ export {default as BackTooth} from "./DentalChartTooth/BackTooth.jsx";
 export {default as FrontTooth} from "./DentalChartTooth/FrontTooth.jsx";
 export {default as RenderHistoryQuestions} from "./renderHistoryQuestions/RenderHistoryQuestions.jsx"
 export {default as EditCaseDialog} from "./editCaseDialog/EditCaseDialog.jsx";
+export {default as EditExamQuestion} from "./editExamQuestion/EditExamQuestion.jsx";
 
 //Student Components//
 export {default as ChatBot} from "./chatBot/ChatBot.jsx";

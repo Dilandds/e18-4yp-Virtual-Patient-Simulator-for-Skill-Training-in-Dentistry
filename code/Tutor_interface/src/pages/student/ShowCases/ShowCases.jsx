@@ -18,6 +18,8 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import QuizIcon from '@mui/icons-material/Quiz';
+import { useNavigate } from 'react-router-dom';
 import config from '../../../config.js';
 import { EditCaseDialog } from '../../../components/Components.jsx';
 import './showCases.scss';
@@ -29,6 +31,7 @@ import './showCases.scss';
 // point, and dentalComplaintCasesRoutes.js for the updateCase/deleteCase
 // routes this page calls.
 const ShowCases = () => {
+    const navigate = useNavigate();
     const [cases, setCases] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -193,7 +196,22 @@ const ShowCases = () => {
                                     <Typography variant="body2" color="text.secondary">
                                         {caseItem.caseScenario}
                                     </Typography>
-                                    <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+                                    <Box display="flex" flexWrap="wrap" justifyContent="flex-end" gap={1} mt={2}>
+                                        <Button
+                                            size="small"
+                                            startIcon={<QuizIcon />}
+                                            onClick={() =>
+                                                navigate('/manageQuestions', {
+                                                    state: {
+                                                        mainTypeName: caseItem.mainComplaintType,
+                                                        complaintTypeName: caseItem.caseName,
+                                                        caseId: caseItem.caseId,
+                                                    },
+                                                })
+                                            }
+                                        >
+                                            Questions
+                                        </Button>
                                         <Button
                                             size="small"
                                             startIcon={<EditIcon />}

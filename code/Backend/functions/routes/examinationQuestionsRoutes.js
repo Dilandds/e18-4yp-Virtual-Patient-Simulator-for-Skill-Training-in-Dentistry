@@ -161,17 +161,22 @@ router.post(
   }
 );
 
-// Updates an existing question's text and/or answer choices in place.
-// Added to fix questions that were saved incomplete (e.g. answer choices
-// with blank text and no correct answer marked) -- there was previously no
-// way to correct a question once created, only add a new one alongside it.
+// Updates an existing question's text, answer choices, and/or images in
+// place. Added to fix questions that were saved incomplete (e.g. answer
+// choices with blank text and no correct answer marked, or the wrong image
+// attached) -- there was previously no way to correct a question once
+// created, only add a new one alongside it.
 //
-// Deliberately narrow: only `question` and `answerChoices` can be changed.
-// `questionImageUrl` and `questionType` are left untouched, since changing
-// those would mean re-uploading files, which is out of scope here.
+// Images can only be REMOVED here, not replaced/re-uploaded -- that still
+// needs a new question, since it requires a file upload. Removing just
+// clears the stored URL; the file itself is left in Firebase Storage (it's
+// unlinked, not deleted, since other questions could in principle reuse the
+// same URL and deleting the wrong thing is worse than leaving an orphan
+// file behind).
 //
 // Body: { mainTypeName, complaintTypeName, caseId, sectionName, questionId,
-//         question, answerChoices: [{ text, isCorrect, imageUrl? }, ...] }
+//         question, removeQuestionImage?,
+//         answerChoices: [{ text, isCorrect, removeImage? }, ...] }
 router.put(
   "/updateExaminationQuestion",
   bodyParser.json(),
@@ -185,6 +190,7 @@ router.put(
         questionId,
         question,
         answerChoices,
+        removeQuestionImage,
       } = req.body;
 
       if (
@@ -220,6 +226,10 @@ router.put(
         updatedQuestion.question = question;
       }
 
+      if (removeQuestionImage) {
+        updatedQuestion.questionImageUrl = null;
+      }
+
       if (Array.isArray(answerChoices)) {
         // Preserve whichever shape this question already used (a plain
         // array for per-choice images, or {answerChoices: [...]} otherwise)
@@ -230,6 +240,9 @@ router.put(
               ...choice,
               text: answerChoices[idx]?.text ?? choice.text,
               isCorrect: answerChoices[idx]?.isCorrect ?? choice.isCorrect,
+              imageUrl: answerChoices[idx]?.removeImage
+                ? null
+                : choice.imageUrl,
             })
           );
         } else {
