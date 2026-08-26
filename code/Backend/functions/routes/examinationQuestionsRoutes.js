@@ -283,12 +283,23 @@ router.get("/getAllExaminationQuestionsBySectionName", async (req, res) => {
       .orderBy(admin.firestore.FieldPath.documentId())
       .get();
     snapshot.forEach((doc) => {
+      // A doc with no `Question` field (or a malformed one) used to throw
+      // here and take the WHOLE request down with a 500 -- one bad question
+      // meant the tutor couldn't see any of this section's other questions
+      // either. Skip just that doc instead, and still return the rest.
+      const data = doc.data();
+      if (!data || !data.Question) {
+        console.warn(
+          `Skipping malformed question doc ${doc.id} in ${mainTypeName}/${complaintTypeName}/${caseId}/${sectionName}`
+        );
+        return;
+      }
       questions.push({
         questionId: doc.id,
-        question: doc.data().Question.question,
-        questionType: doc.data().Question.questionType,
-        questionImageUrl: doc.data().Question.questionImageUrl,
-        choices: doc.data().Question.choices,
+        question: data.Question.question,
+        questionType: data.Question.questionType,
+        questionImageUrl: data.Question.questionImageUrl,
+        choices: data.Question.choices,
       });
     });
 
@@ -329,12 +340,22 @@ router.get("/getAllExaminationQuestions", async (req, res) => {
         .get();
 
       questionsSnapshot.forEach((doc) => {
+        // Same defensive skip as getAllExaminationQuestionsBySectionName
+        // above -- one malformed doc in one section shouldn't 500 the
+        // whole case's question list.
+        const data = doc.data();
+        if (!data || !data.Question) {
+          console.warn(
+            `Skipping malformed question doc ${doc.id} in ${mainTypeName}/${complaintTypeName}/${caseId}/${sectionName}`
+          );
+          return;
+        }
         questions.push({
           questionId: doc.id,
-          question: doc.data().Question.question,
-          questionType: doc.data().Question.questionType,
-          questionImageUrl: doc.data().Question.questionImageUrl,
-          choices: doc.data().Question.choices,
+          question: data.Question.question,
+          questionType: data.Question.questionType,
+          questionImageUrl: data.Question.questionImageUrl,
+          choices: data.Question.choices,
         });
       });
 
