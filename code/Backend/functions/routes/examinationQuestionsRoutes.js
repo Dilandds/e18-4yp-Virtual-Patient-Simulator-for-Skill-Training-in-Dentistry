@@ -7,6 +7,17 @@ const moment = require("moment");
 
 const COLLECTION_NAME = "dentalComplaintCases";
 
+// Questions authored before `order` existed have no such field. Sort those
+// after anything that DOES have one, and leave their relative order alone
+// (Array.prototype.sort is stable) rather than dropping or misplacing them.
+const sortByOrder = (questions) =>
+  [...questions].sort((a, b) => {
+    if (a.order == null && b.order == null) return 0;
+    if (a.order == null) return 1;
+    if (b.order == null) return -1;
+    return a.order - b.order;
+  });
+
 const { admin, db, bucket } = require("../config/db");
 
 // Middleware and route for creating an examination question
@@ -133,6 +144,13 @@ router.post(
         questionImageUrl = await uploadFile(req.files[0]);
       }
 
+      // New questions go at the end of the section by default. `order` is
+      // what getAllExaminationQuestions*/updateQuestionsOrder below sort
+      // and rewrite -- see updateQuestionsOrder for how a tutor reorders
+      // questions after the fact.
+      const existingQuestionsSnapshot = await complaintTypeRef.get();
+      const nextOrder = existingQuestionsSnapshot.size;
+
       // Add question to Firestore
       newQuestionRef = await complaintTypeRef.add({
         Question: {
@@ -140,6 +158,7 @@ router.post(
           question: question,
           choices: choices.length ? choices : answerChoicesInJson,
           questionImageUrl: questionImageUrl || null,
+          order: nextOrder,
         },
       });
 
@@ -264,6 +283,62 @@ router.put(
   }
 );
 
+// Lets a tutor reorder every question in one section in a single call --
+// pass the FULL list of that section's question ids in the order they
+// should appear. Each doc's Question.order is rewritten to match its index.
+// A partial list would leave the missing questions' old order values in
+// place, which could put them anywhere relative to the reordered ones, so
+// the caller (ManageQuestions.jsx) always sends the whole section.
+//
+// Body: { mainTypeName, complaintTypeName, caseId, sectionName,
+//         orderedQuestionIds: [questionId, ...] }
+router.put("/updateQuestionsOrder", bodyParser.json(), async (req, res) => {
+  try {
+    const {
+      mainTypeName,
+      complaintTypeName,
+      caseId,
+      sectionName,
+      orderedQuestionIds,
+    } = req.body;
+
+    if (
+      !mainTypeName ||
+      !complaintTypeName ||
+      !caseId ||
+      !sectionName ||
+      !Array.isArray(orderedQuestionIds) ||
+      orderedQuestionIds.length === 0
+    ) {
+      return res.status(400).json({
+        error:
+          "Missing identifiers or orderedQuestionIds. Supply mainTypeName, complaintTypeName, caseId, sectionName and a non-empty orderedQuestionIds array.",
+      });
+    }
+
+    const sectionRef = db
+      .collection(COLLECTION_NAME)
+      .doc(mainTypeName)
+      .collection(complaintTypeName)
+      .doc(caseId)
+      .collection(sectionName);
+
+    const batch = db.batch();
+    orderedQuestionIds.forEach((questionId, index) => {
+      batch.update(sectionRef.doc(questionId), { "Question.order": index });
+    });
+    await batch.commit();
+
+    res.status(200).json({
+      message: "Question order updated.",
+      orderedQuestionIds,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // get all questions
 router.get("/getAllExaminationQuestionsBySectionName", async (req, res) => {
   try {
@@ -300,12 +375,13 @@ router.get("/getAllExaminationQuestionsBySectionName", async (req, res) => {
         questionType: data.Question.questionType,
         questionImageUrl: data.Question.questionImageUrl,
         choices: data.Question.choices,
+        order: data.Question.order,
       });
     });
 
     res.status(200).json({
       message: "Questions retrieved successfully.",
-      data: questions,
+      data: sortByOrder(questions),
     });
   } catch (error) {
     console.error(error);
@@ -356,10 +432,11 @@ router.get("/getAllExaminationQuestions", async (req, res) => {
           questionType: data.Question.questionType,
           questionImageUrl: data.Question.questionImageUrl,
           choices: data.Question.choices,
+          order: data.Question.order,
         });
       });
 
-      questionsBySections[sectionName] = questions;
+      questionsBySections[sectionName] = sortByOrder(questions);
     }
 
     res.status(200).json({

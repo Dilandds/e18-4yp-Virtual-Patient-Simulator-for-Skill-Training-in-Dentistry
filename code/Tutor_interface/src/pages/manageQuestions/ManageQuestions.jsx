@@ -13,6 +13,8 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EditIcon from '@mui/icons-material/Edit';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import config from '../../config.js';
 import { QuestionDisplay, EditExamQuestion } from '../../components/Components.jsx';
 import './manageQuestions.scss';
@@ -89,6 +91,37 @@ const ManageQuestions = () => {
         }));
     };
 
+    // Moves one question up/down within its section and saves the WHOLE
+    // section's new order in one call (see updateQuestionsOrder on the
+    // backend for why it needs the full list, not just the one that moved).
+    // Updates the screen immediately so it feels instant, then rolls back
+    // if the save fails.
+    const moveQuestion = (sectionName, index, direction) => {
+        const targetIndex = index + direction;
+        const current = questionsBySection[sectionName] || [];
+        if (targetIndex < 0 || targetIndex >= current.length) return;
+
+        const reordered = [...current];
+        [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+
+        setQuestionsBySection((previous) => ({ ...previous, [sectionName]: reordered }));
+
+        axios
+            .put(`${config.apiBaseUrl}examintionQuestions/updateQuestionsOrder`, {
+                mainTypeName,
+                complaintTypeName,
+                caseId,
+                sectionName,
+                orderedQuestionIds: reordered.map((q) => q.questionId),
+            })
+            .catch((error) => {
+                console.error('Error saving question order:', error);
+                // Roll back so the screen doesn't claim an order that never saved.
+                setQuestionsBySection((previous) => ({ ...previous, [sectionName]: current }));
+                setLoadError('Could not save the new question order. Please try again.');
+            });
+    };
+
     const sectionNames = Object.keys(questionsBySection);
 
     return (
@@ -136,12 +169,34 @@ const ManageQuestions = () => {
                                 No questions in this section.
                             </Typography>
                         )}
-                        {(questionsBySection[sectionName] || []).map((question, index) => (
+                        {(questionsBySection[sectionName] || []).map((question, index, sectionQuestions) => (
                             <Accordion key={question.questionId}>
                                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Typography sx={{ flexGrow: 1 }}>
-                                        {index + 1}. {question.question}
-                                    </Typography>
+                                    <Box display="flex" alignItems="center" flexGrow={1} gap={0.5}>
+                                        <Box display="flex" flexDirection="column" onClick={(e) => e.stopPropagation()}>
+                                            <Button
+                                                size="small"
+                                                sx={{ minWidth: 0, padding: '2px' }}
+                                                disabled={index === 0}
+                                                onClick={() => moveQuestion(sectionName, index, -1)}
+                                                aria-label="Move question up"
+                                            >
+                                                <ArrowUpwardIcon fontSize="small" />
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                sx={{ minWidth: 0, padding: '2px' }}
+                                                disabled={index === sectionQuestions.length - 1}
+                                                onClick={() => moveQuestion(sectionName, index, 1)}
+                                                aria-label="Move question down"
+                                            >
+                                                <ArrowDownwardIcon fontSize="small" />
+                                            </Button>
+                                        </Box>
+                                        <Typography sx={{ flexGrow: 1 }}>
+                                            {index + 1}. {question.question}
+                                        </Typography>
+                                    </Box>
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <QuestionDisplay question={toDisplayShape(question)} />
