@@ -26,7 +26,7 @@ const CheckboxQuestion = ({ question, onAnswerChange }) => {
         <img
           src={imageSrc}
           alt="Question"
-          style={{ width: "100px", marginBottom: "10px" }}
+          style={{ width: "100%", maxWidth: "260px", marginBottom: "10px" }}
         />
       )}
       {answers && (
@@ -46,7 +46,7 @@ const CheckboxQuestion = ({ question, onAnswerChange }) => {
                     <img
                       src={imageUrl}
                       alt={text || "Answer option"}
-                      style={{ width: "50px", marginLeft: "10px" }}
+                      style={{ width: "90px", marginLeft: "10px", verticalAlign: "middle" }}
                     />
                   )}
                 </label>
